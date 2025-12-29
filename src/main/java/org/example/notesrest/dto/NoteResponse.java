@@ -7,7 +7,7 @@ import lombok.extern.jackson.Jacksonized;
 
 @Builder
 @Jacksonized
-public record GetAllNotesResponse(
+public record NoteResponse(
         Long id,
         String title,
         String content,

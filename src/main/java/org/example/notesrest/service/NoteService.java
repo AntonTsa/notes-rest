@@ -1,20 +1,17 @@
 package org.example.notesrest.service;
 
-import org.example.notesrest.dto.CreateNoteRequest;
-import org.example.notesrest.dto.GetAllNotesResponse;
-import org.example.notesrest.dto.GetNoteResponse;
-import org.example.notesrest.dto.PageResponse;
-import org.example.notesrest.dto.ReplaceNoteRequest;
+import org.example.notesrest.entity.Note;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface NoteService {
-    Long createNote(CreateNoteRequest request);
+    Long createNote(Note note);
 
-    GetNoteResponse getNote(Long id);
+    Note getNote(Long id);
 
-    PageResponse<GetAllNotesResponse> getAllNotes(Pageable pageable);
+    Page<Note> getAllNotes(Pageable pageable);
 
-    void replaceNote(Long id, ReplaceNoteRequest request);
+    void replaceNote(Long id, Note note);
 
     void deleteNote(Long id);
 }

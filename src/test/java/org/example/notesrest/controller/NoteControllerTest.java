@@ -1,25 +1,26 @@
 package org.example.notesrest.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.example.notesrest.controller.NoteControllerFixture.CREATE_NOTE_REQUEST;
-import static org.example.notesrest.controller.NoteControllerFixture.CREATE_NOTE_REQUEST_INVALID;
-import static org.example.notesrest.controller.NoteControllerFixture.CREATE_NOTE_RESPONSE_BAD_REQUEST_MESSAGE;
-import static org.example.notesrest.controller.NoteControllerFixture.DELETE_NOTE_RESPONSE_BAD_REQUEST_MESSAGE;
+import static org.example.notesrest.controller.NoteControllerFixture.ALL_NOTES_EMPTY_PAGEABLE;
+import static org.example.notesrest.controller.NoteControllerFixture.ALL_NOTES_PAGEABLE;
+import static org.example.notesrest.controller.NoteControllerFixture.ALL_NOTES_RESPONSES_EMPTY_PAGE_RESPONSE;
+import static org.example.notesrest.controller.NoteControllerFixture.BAD_REQUEST_MESSAGE;
+import static org.example.notesrest.controller.NoteControllerFixture.DELETE_BAD_REQUEST_MESSAGE;
 import static org.example.notesrest.controller.NoteControllerFixture.EXPECTED_CREATED_URL;
-import static org.example.notesrest.controller.NoteControllerFixture.GET_ALL_NOTES_EMPTY_RESPONSE_PAGEABLE;
-import static org.example.notesrest.controller.NoteControllerFixture.GET_ALL_NOTES_RESPONSE;
-import static org.example.notesrest.controller.NoteControllerFixture.GET_ALL_NOTES_RESPONSE_PAGEABLE;
-import static org.example.notesrest.controller.NoteControllerFixture.GET_NOTE_RESPONSE_VALID;
+import static org.example.notesrest.controller.NoteControllerFixture.LIST_NOTE_RESPONSES;
 import static org.example.notesrest.controller.NoteControllerFixture.NOTES_URL_VALID;
 import static org.example.notesrest.controller.NoteControllerFixture.NOTE_ID_INVALID;
 import static org.example.notesrest.controller.NoteControllerFixture.NOTE_ID_MALFORMED;
 import static org.example.notesrest.controller.NoteControllerFixture.NOTE_ID_VALID;
+import static org.example.notesrest.controller.NoteControllerFixture.NOTE_INVALID;
+import static org.example.notesrest.controller.NoteControllerFixture.NOTE_REQUEST_INVALID;
+import static org.example.notesrest.controller.NoteControllerFixture.NOTE_REQUEST_VALID;
+import static org.example.notesrest.controller.NoteControllerFixture.NOTE_RESPONSE_VALID;
 import static org.example.notesrest.controller.NoteControllerFixture.NOTE_URL_VALID;
+import static org.example.notesrest.controller.NoteControllerFixture.NOTE_VALID;
 import static org.example.notesrest.controller.NoteControllerFixture.NOT_FOUND_EXCEPTION_MESSAGE;
 import static org.example.notesrest.controller.NoteControllerFixture.PAGE_REQUEST;
-import static org.example.notesrest.controller.NoteControllerFixture.REPLACE_NOTE_REQUEST;
-import static org.example.notesrest.controller.NoteControllerFixture.REPLACE_NOTE_REQUEST_INVALID;
-import static org.example.notesrest.controller.NoteControllerFixture.REPLACE_NOTE_RESPONSE_BAD_REQUEST_MESSAGE;
+import static org.example.notesrest.controller.NoteControllerFixture.PAGE_RESPONSE_NOTE_RESPONSE;
 import static org.example.notesrest.controller.NoteControllerFixture.STORAGE_EXCEPTION_MESSAGE;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
@@ -37,10 +38,10 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.util.Objects;
 import lombok.SneakyThrows;
-import org.example.notesrest.dto.GetAllNotesResponse;
-import org.example.notesrest.dto.GetNoteResponse;
+import org.example.notesrest.dto.NoteResponse;
 import org.example.notesrest.dto.PageResponse;
 import org.example.notesrest.dto.RestContractExceptionResponse;
+import org.example.notesrest.mapper.NoteMapper;
 import org.example.notesrest.service.NoteService;
 import org.hibernate.exception.JDBCConnectionException;
 import org.junit.jupiter.api.DisplayName;
@@ -51,8 +52,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -75,26 +74,30 @@ class NoteControllerTest {
     @MockitoBean(answers = Answers.RETURNS_SMART_NULLS)
     private NoteService noteService;
 
+    @MockitoBean(answers = Answers.RETURNS_SMART_NULLS)
+    private NoteMapper noteMapper;
+
     private final ObjectMapper objectMapper = JsonMapper.builder()
             .addModule(new JavaTimeModule())
             .build();
 
     @Test
     @DisplayName("""
-            GIVEN valid createNoteRequest object
+            GIVEN valid noteRequest object
             WHEN performing POST request
             THEN return response with code 201, valid location and empty body
             """)
     void createNoteValid() throws Exception {
         // GIVEN
-        given(noteService.createNote(CREATE_NOTE_REQUEST)).willReturn(NOTE_ID_VALID);
+        given(noteService.createNote(NoteControllerFixture.NOTE_VALID)).willReturn(NOTE_ID_VALID);
+        given(noteMapper.toNote(NOTE_REQUEST_VALID)).willReturn(NOTE_VALID);
 
         // WHEN
         MockHttpServletResponse actualResponse = mockMvc
                 .perform(post(NOTES_URL_VALID)
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(CREATE_NOTE_REQUEST))
+                        .content(toJson(NOTE_REQUEST_VALID))
                 )
                 // THEN
                 .andExpect(status().isCreated())
@@ -110,7 +113,7 @@ class NoteControllerTest {
 
     @Test
     @DisplayName("""
-            GIVEN invalid createNoteRequest object
+            GIVEN invalid noteRequest object
             WHEN performing POST request
             THEN return response with code 400 and message "Bad Request"
             """)
@@ -122,7 +125,7 @@ class NoteControllerTest {
                         .perform(post(NOTES_URL_VALID)
                                 .accept(MediaType.APPLICATION_JSON)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(CREATE_NOTE_REQUEST_INVALID)
+                                .content(toJson(NOTE_REQUEST_INVALID))
                         )
                         // THEN
                         .andExpect(status().isBadRequest())
@@ -132,7 +135,7 @@ class NoteControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(CREATE_NOTE_RESPONSE_BAD_REQUEST_MESSAGE);
+        assertThat(actualResponse.message()).isEqualTo(BAD_REQUEST_MESSAGE);
     }
 
     @Test
@@ -143,11 +146,13 @@ class NoteControllerTest {
             """)
     void getAllNotesValid() throws Exception {
         // GIVEN
-        given(noteService.getAllNotes(PageRequest.of(0, 3, Sort.Direction.ASC, "id")))
-                .willReturn(GET_ALL_NOTES_RESPONSE_PAGEABLE);
+        given(noteService.getAllNotes(PAGE_REQUEST))
+                .willReturn(ALL_NOTES_PAGEABLE);
+        given(noteMapper.toPageResponse(ALL_NOTES_PAGEABLE))
+                .willReturn(PAGE_RESPONSE_NOTE_RESPONSE);
 
         // WHEN
-        PageResponse<GetAllNotesResponse> actualResponse = fromJson(mockMvc
+        PageResponse<NoteResponse> actualResponse = fromJson(mockMvc
                         .perform(get(NOTES_URL_VALID)
                                 .accept(MediaType.APPLICATION_JSON))
                         // THEN
@@ -162,7 +167,7 @@ class NoteControllerTest {
         // AND THEN
         assertThat(actualResponse.totalElements()).isEqualTo(2L);
         assertThat(actualResponse.totalPages()).isEqualTo(1);
-        assertThat(actualResponse.content()).isEqualTo(GET_ALL_NOTES_RESPONSE);
+        assertThat(actualResponse.content()).isEqualTo(LIST_NOTE_RESPONSES);
     }
 
     @Test
@@ -174,10 +179,12 @@ class NoteControllerTest {
     void getAllNotesEmptyValid() throws Exception {
         // GIVEN
         given(noteService.getAllNotes(PAGE_REQUEST))
-                .willReturn(GET_ALL_NOTES_EMPTY_RESPONSE_PAGEABLE);
+                .willReturn(ALL_NOTES_EMPTY_PAGEABLE);
+        given(noteMapper.toPageResponse(ALL_NOTES_EMPTY_PAGEABLE))
+                .willReturn(ALL_NOTES_RESPONSES_EMPTY_PAGE_RESPONSE);
 
         // WHEN
-        PageResponse<GetAllNotesResponse> actualResponse = fromJson(mockMvc
+        PageResponse<NoteResponse> actualResponse = fromJson(mockMvc
                         .perform(get(NOTES_URL_VALID)
                                 .accept(MediaType.APPLICATION_JSON))
                         // THEN
@@ -229,10 +236,11 @@ class NoteControllerTest {
             """)
     void getOneNoteByIdValid() throws Exception {
         // GIVEN
-        given(noteService.getNote(NOTE_ID_VALID)).willReturn(GET_NOTE_RESPONSE_VALID);
+        given(noteService.getNote(NOTE_ID_VALID)).willReturn(NOTE_VALID);
+        given(noteMapper.toNoteResponse(NOTE_VALID)).willReturn(NOTE_RESPONSE_VALID);
 
         // WHEN
-        GetNoteResponse actualResponse = fromJson(mockMvc
+        NoteResponse actualResponse = fromJson(mockMvc
                         .perform(get(NOTE_URL_VALID, NOTE_ID_VALID)
                                 .accept(MediaType.APPLICATION_JSON))
 
@@ -241,10 +249,10 @@ class NoteControllerTest {
                         .andReturn()
                         .getResponse()
                         .getContentAsString(),
-                GetNoteResponse.class);
+                NoteResponse.class);
 
         // AND THEN
-        assertThat(actualResponse).isEqualTo(GET_NOTE_RESPONSE_VALID);
+        assertThat(actualResponse).isEqualTo(NOTE_RESPONSE_VALID);
     }
 
     @Test
@@ -309,14 +317,14 @@ class NoteControllerTest {
             """)
     void replaceNoteByValidId() throws Exception {
         // GIVEN
-        doNothing().when(noteService).replaceNote(NOTE_ID_VALID, REPLACE_NOTE_REQUEST);
+        doNothing().when(noteService).replaceNote(NOTE_ID_VALID, NOTE_VALID);
 
         // WHEN
         MockHttpServletResponse actualResponse = mockMvc
                 .perform(put(NOTE_URL_VALID, NOTE_ID_VALID)
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(REPLACE_NOTE_REQUEST))
+                        .content(toJson(NOTE_REQUEST_VALID))
                 )
                 // THEN
                 .andExpect(status().isNoContent())
@@ -335,15 +343,16 @@ class NoteControllerTest {
             """)
     void replaceNoteByInvalidId() throws Exception {
         // GIVEN
+        given(noteMapper.toNote(NOTE_REQUEST_VALID)).willReturn(NOTE_VALID);
         doThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND))
-                .when(noteService).replaceNote(NOTE_ID_INVALID, REPLACE_NOTE_REQUEST);
+                .when(noteService).replaceNote(NOTE_ID_INVALID, NOTE_VALID);
 
         // WHEN
         RestContractExceptionResponse actualResponse = fromJson(mockMvc
                         .perform(put(NOTE_URL_VALID, NOTE_ID_INVALID)
                                 .accept(MediaType.APPLICATION_JSON)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(toJson(REPLACE_NOTE_REQUEST))
+                                .content(toJson(NOTE_REQUEST_VALID))
                         )
                         // THEN
                         .andExpect(status().isNotFound())
@@ -364,7 +373,7 @@ class NoteControllerTest {
             """)
     void replaceNoteByValidIdAndInvalidReplaceNoteRequest() throws Exception {
         // GIVEN
-        doNothing().when(noteService).replaceNote(NOTE_ID_VALID, REPLACE_NOTE_REQUEST_INVALID);
+        doNothing().when(noteService).replaceNote(NOTE_ID_VALID, NOTE_INVALID);
 
         // WHEN
         RestContractExceptionResponse actualResponse =
@@ -372,7 +381,7 @@ class NoteControllerTest {
                                 .perform(put(NOTE_URL_VALID, NOTE_ID_VALID)
                                         .accept(MediaType.APPLICATION_JSON)
                                         .contentType(MediaType.APPLICATION_JSON)
-                                        .content(toJson(REPLACE_NOTE_REQUEST_INVALID))
+                                        .content(toJson(NOTE_REQUEST_INVALID))
                                 )
                                 .andExpect(status().isBadRequest())
                                 .andReturn()
@@ -380,7 +389,7 @@ class NoteControllerTest {
                                 .getContentAsString(),
                         RestContractExceptionResponse.class);
         //AND THEN
-        assertThat(actualResponse.message()).isEqualTo(REPLACE_NOTE_RESPONSE_BAD_REQUEST_MESSAGE);
+        assertThat(actualResponse.message()).isEqualTo(BAD_REQUEST_MESSAGE);
     }
 
     @Test
@@ -431,7 +440,7 @@ class NoteControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(DELETE_NOTE_RESPONSE_BAD_REQUEST_MESSAGE);
+        assertThat(actualResponse.message()).isEqualTo(DELETE_BAD_REQUEST_MESSAGE);
     }
 
     @Test
@@ -450,7 +459,6 @@ class NoteControllerTest {
                         .perform(delete(NOTE_URL_VALID, NOTE_ID_INVALID)
                                 .accept(MediaType.APPLICATION_JSON)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(toJson(REPLACE_NOTE_REQUEST))
                         )
                         // THEN
                         .andExpect(status().isNotFound())
@@ -465,9 +473,9 @@ class NoteControllerTest {
 
     @Test
     @DisplayName("""
-            GIVEN valid removal all request
-            WHEN performing DELETE all request
-            THEN return response with code 204 and delete all entries
+            GIVEN valid removal request with valid note id
+            WHEN performing DELETE request
+            THEN return response with code 204 and delete entry
             """)
     void deleteAllNotesValid() throws Exception {
         // GIVEN

@@ -5,11 +5,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
-import org.example.notesrest.dto.CreateNoteRequest;
-import org.example.notesrest.dto.GetAllNotesResponse;
-import org.example.notesrest.dto.GetNoteResponse;
+import org.example.notesrest.dto.NoteRequest;
+import org.example.notesrest.dto.NoteResponse;
 import org.example.notesrest.dto.PageResponse;
-import org.example.notesrest.dto.ReplaceNoteRequest;
+import org.example.notesrest.entity.Note;
+import org.example.notesrest.mapper.NoteMapper;
 import org.example.notesrest.service.NoteService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -31,44 +31,46 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/api/notes")
 public class NoteController {
-
     private final NoteService noteService;
+    private final NoteMapper mapper;
 
     @PostMapping
     public ResponseEntity<URI> create(
-            @Valid @RequestBody CreateNoteRequest createNoteRequest,
+            @Valid @RequestBody NoteRequest noteRequest,
             HttpServletRequest httpServletRequest
     ) {
+        Note note = mapper.toNote(noteRequest);
         return ResponseEntity.created(
                 URI.create(
                         httpServletRequest.getRequestURI()
                                 + "/"
-                                + noteService.createNote(createNoteRequest)
+                                + noteService.createNote(note)
                 )
         ).build();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<GetNoteResponse> getNote(@PathVariable @Positive long id) {
-        return ResponseEntity.ok(noteService.getNote(id));
+    public ResponseEntity<NoteResponse> getNote(@PathVariable @Positive long id) {
+        return ResponseEntity.ok(mapper.toNoteResponse(noteService.getNote(id)));
     }
 
     @GetMapping
-    public ResponseEntity<PageResponse<GetAllNotesResponse>> getAllNotes(
+    public ResponseEntity<PageResponse<NoteResponse>> getAllNotes(
             @PageableDefault(size = 3)
             @SortDefault.SortDefaults(
                     @SortDefault(sort = "id", direction = Sort.Direction.ASC)
             )Pageable pageable
     ) {
-        return ResponseEntity.ok(noteService.getAllNotes(pageable));
+
+        return ResponseEntity.ok(mapper.toPageResponse(noteService.getAllNotes(pageable)));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Void> updateNote(
             @PathVariable @Positive long id,
-            @Valid @RequestBody ReplaceNoteRequest replaceNoteRequest
+            @Valid @RequestBody NoteRequest noteRequest
     ) {
-        noteService.replaceNote(id, replaceNoteRequest);
+        noteService.replaceNote(id, mapper.toNote(noteRequest));
         return ResponseEntity.noContent().build();
     }
 

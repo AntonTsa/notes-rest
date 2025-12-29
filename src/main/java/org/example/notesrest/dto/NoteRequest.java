@@ -8,7 +8,7 @@ import lombok.extern.jackson.Jacksonized;
 
 @Builder
 @Jacksonized
-public record CreateNoteRequest(
+public record NoteRequest(
         @NotBlank
         @Size(min = 3, max = 100)
         String title,
