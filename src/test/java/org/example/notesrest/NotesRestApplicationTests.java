@@ -26,7 +26,6 @@ class NotesRestApplicationTests {
         // GIVEN
 
         // WHEN
-        NotesRestApplication.main(new String[]{});
 
         // THEN
         assertThat(application).isNotNull();

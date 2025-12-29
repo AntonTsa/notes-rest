@@ -1,6 +1,10 @@
 spring:
-  main:
-    bannerMode: console
+  datasource:
+    url: jdbc:h2:mem:notesdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
   flyway:
-    baselineOnMigrate: false
     enabled: false
+server:
+  port: 0
