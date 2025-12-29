@@ -1,0 +1,6 @@
+spring:
+  main:
+    bannerMode: console
+  flyway:
+    baselineOnMigrate: false
+    enabled: false
